@@ -423,7 +423,7 @@ get_prefix(City) ->
                     {'error', wh_json:decode(Body)}
             end
     end.
-            
+
 
 
 %%--------------------------------------------------------------------
@@ -662,7 +662,7 @@ put_attachments(Number, Context, [{Filename, FileObj}|Files]) ->
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec set_response(operation_return(), binary(), cb_context:context()) ->
+-spec set_response(operation_return() | {binary(), binary()}, binary(), cb_context:context()) ->
                           cb_context:context().
 set_response({'ok', Doc}, _, Context) ->
     crossbar_util:response(Doc, Context);
