@@ -42,7 +42,7 @@
 -export([normalize_jobj/1
          ,normalize/1
          ,normalize_key/1
-         ,is_json_object/1
+         ,is_json_object/1, is_json_object/2
          ,is_valid_json_object/1
          ,is_json_term/1
         ]).
@@ -129,8 +129,12 @@ is_empty(MaybeJObj) ->
     MaybeJObj =:= ?EMPTY_JSON_OBJECT.
 
 -spec is_json_object(term()) -> boolean().
+-spec is_json_object(key(), term()) -> boolean().
 is_json_object(?JSON_WRAPPER(P)) when is_list(P) -> 'true';
 is_json_object(_) -> 'false'.
+
+is_json_object(Key, JObj) ->
+    is_json_object(get_value(Key, JObj)).
 
 -spec is_valid_json_object(term()) -> boolean().
 is_valid_json_object(MaybeJObj) ->
