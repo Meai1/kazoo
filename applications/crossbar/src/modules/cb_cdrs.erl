@@ -134,7 +134,7 @@ load_view(View, ViewOptions, Context) ->
              end,
     {_,ToDate,FromDate} = get_filter_params(Context),
     case {cdr_db(FromDate, Context), cdr_db(ToDate, Context)} of
-        {Db, Db} -> 
+        {Db, Db} ->
             load_view_matching_db(View, ViewOptions, G, L, Context, Db);
         {PastDb, PresentDb} ->
             load_view_spanning_dbs(View, ViewOptions, G, L, Context, PastDb, PresentDb)
@@ -159,30 +159,34 @@ load_view_spanning_dbs(View, ViewOptions, G, L, Context, PastDb, PresentDb) ->
                 'success' ->
                     PresentCDRs = cb_context:doc(Context2),
                     cb_context:set_resp_data(Context2, PastCDRs ++ PresentCDRs);
-                {'error', _E} -> lager:error("error ~p", [_E]),
-                                 Context2
+                _ -> Context2
             end;
         'error'  -> Context1;
         _ -> Context1
     end.
 
--spec fetch_from_db(boolean(), boolean(), ne_binary(), wh_proplist(), cb_context:context()) -> api_objects().
+-spec fetch_from_db(boolean(), boolean(), ne_binary(), wh_proplist(), cb_context:context()) ->
+                           cb_context:context().
 fetch_from_db(G, L, View, ViewOptions, #cb_context{query_json=JObj}=Context) ->
     crossbar_doc:load_view(View
                            ,maybe_load_doc(G, L, ViewOptions)
                            ,Context#cb_context{query_json=wh_json:delete_keys([<<"created_to">>
-                                                                                   ,<<"created_from">>
+                                                                               ,<<"created_from">>
                                                                               ], JObj)}
                            ,fun(CDR, Acc) -> normalize_view_results(CDR, Acc, G, L) end
                           ).
 
--spec maybe_add_design_doc(ne_binary()) -> 'ok' | {'error', 'not_found'}.
+-spec maybe_add_design_doc(ne_binary()) ->
+                                  'ok' |
+                                  {'error', 'not_found'}.
 maybe_add_design_doc(AccountMODb) ->
     case couch_mgr:open_doc(AccountMODb, <<"_design/cdrs">>) of
-        {'error', 'not_found'} -> couch_mgr:load_doc_from_file(AccountMODb
-                                                               ,'crossbar'
-                                                               ,<<"account/cdrs.json">>);
-        {'ok', _ } -> 'ok'
+        {'ok', _ } -> 'ok';
+        {'error', 'not_found'} ->
+            couch_mgr:load_doc_from_file(AccountMODb
+                                         ,'crossbar'
+                                         ,<<"account/cdrs.json">>
+                                        )
     end.
 
 maybe_load_doc('true', _, ViewOptions) ->
@@ -203,6 +207,7 @@ cdr_db(Timestamp, Context) ->
     end.
 
 -spec cdr_db_name(pos_integer(), cb_context:context()) -> ne_binary().
+-spec cdr_db_name(wh_year(), wh_month(), cb_context:context()) -> ne_binary().
 cdr_db_name(Timestamp, Context) ->
     {{Year, Month, _}, _} = calendar:gregorian_seconds_to_datetime(Timestamp),
     #cb_context{req_nouns=ReqNouns} = Context,
@@ -276,7 +281,7 @@ calc_internal_cost(RateDoc, Cdr) ->
     RateMin = wh_json:get_integer_value(<<"rate_minimum">>, RateDoc, 60),
     Surcharge = wh_json:get_float_value(<<"rate_surcharge">>, RateDoc, 0.0),
     BillingSecs = wh_json:get_integer_value(<<"billing_seconds">>, Cdr, 0),
-    case wh_json:get_value(<<"pvt_vsn">>, Cdr) of
+    case wh_json:get_integer_value(<<"pvt_vsn">>, Cdr) of
         1 ->
             Cost = wht_util:calculate_cost(wht_util:dollars_to_units(Rate)
                                            ,RateIncr
@@ -294,13 +299,12 @@ filter_cdr_fields(JObj) ->
 
 
 -spec get_filter_params(cb_context:context()) ->
-                                       {'ok', wh_proplist()} |
-                                       {'error', cb_context:context()}.
+                               {integer(), integer(), integer()}.
 get_filter_params(#cb_context{query_json=JObj}) ->
     MaxRange = whapps_config:get_integer(?MOD_CONFIG_CAT, <<"maximum_range">>, 6048000),
     To = wh_json:get_integer_value(<<"created_to">>, JObj, wh_util:current_tstamp()),
     From = wh_json:get_integer_value(<<"created_from">>, JObj, wh_util:current_tstamp() - MaxRange),
-    {MaxRange,To,From}.
+    {MaxRange, To, From}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -312,7 +316,7 @@ get_filter_params(#cb_context{query_json=JObj}) ->
                                  {'ok', wh_proplist()} |
                                  {'error', cb_context:context()}.
 create_view_options(OwnerId, Context) ->
-    {MaxRange,To,From} = get_filter_params(Context),
+    {MaxRange, To, From} = get_filter_params(Context),
     Diff = To - From,
     case {Diff < 0, Diff > MaxRange} of
         {'true', _} ->
