@@ -288,7 +288,7 @@ flush_mod(CBMod, {Binding, _BParts, MFs, _Prefix}) ->
             lager:debug("removing mod ~s from ~s", [CBMod, Binding]),
             ets:update_element(?MODULE, Binding, {3, Filtered})
     end.
-            
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -405,12 +405,19 @@ fold_bind_results(MFs, Payload, Route) ->
 
 -spec fold_bind_results([{atom(), atom()},...] | [], term(), ne_binary(), non_neg_integer(), [{atom(), atom()},...] | []) -> term().
 fold_bind_results([{M,F}|MFs], [_|Tokens]=Payload, Route, MFsLen, ReRunQ) ->
-    case catch apply(M, F, Payload) of
-        'eoq' -> lager:debug("putting ~s to eoq", [M]), fold_bind_results(MFs, Payload, Route, MFsLen, [{M,F}|ReRunQ]);
-        {'error', _E}=E -> lager:debug("error, E"), E;
-        {'EXIT', _E} -> lager:debug("excepted: ignoring"), fold_bind_results(MFs, Payload, Route, MFsLen, ReRunQ);
+    try apply(M, F, Payload) of
+        'eoq' ->
+            lager:debug("putting ~s to eoq", [M]),
+            fold_bind_results(MFs, Payload, Route, MFsLen, [{M,F}|ReRunQ]);
+        {'error', _E}=E ->
+            lager:debug("error: ~p", [_E]),
+            E;
         Pay1 ->
             fold_bind_results(MFs, [Pay1|Tokens], Route, MFsLen, ReRunQ)
+    catch
+        _T:_E ->
+            lager:debug("excepted: ~s: ~p", [_T, _E]),
+            fold_bind_results(MFs, Payload, Route, MFsLen, ReRunQ)
     end;
 fold_bind_results([], Payload, Route, MFsLen, ReRunQ) ->
     case length(ReRunQ) of
