@@ -214,7 +214,6 @@ cdr_db_name(Timestamp, Context) ->
     [AccountId] = props:get_value(<<"accounts">>, ReqNouns),
     wh_util:format_account_id(AccountId, Year, Month).
 
--spec cdr_db_name(wh_year(), wh_month(), cb_context:context()) -> ne_binary().
 cdr_db_name(Year, Month, Context) ->
     #cb_context{req_nouns=ReqNouns} = Context,
     [AccountId] = props:get_value(<<"accounts">>, ReqNouns),
